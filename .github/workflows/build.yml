@@ -27,24 +27,21 @@ jobs:
           node-version: 16
           cache: npm
 
-      - name: Show environment
+      - name: Check Node
         run: |
-          sw_vers
-          uname -m
+          which node
           node --version
           npm --version
+          uname -m
+          sw_vers
 
       - name: Install dependencies
-        env:
-          NODE_OPTIONS: --openssl-legacy-provider
         run: |
           npm ci
 
       - name: Build Solar Tweaks
-        env:
-          NODE_OPTIONS: --openssl-legacy-provider
         run: |
-          npm run build -- --mac
+          NODE_OPTIONS=--openssl-legacy-provider npm run build -- --mac
 
       - name: List build output
         run: |
