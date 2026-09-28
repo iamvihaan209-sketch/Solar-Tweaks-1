@@ -58,7 +58,7 @@ jobs:
         env:
           NODE_OPTIONS: --openssl-legacy-provider
         run: |
-          npm run build -- --mac --dir
+          npm run build -- --mac --dir 
 
       - name: Check Electron output
         run: |
