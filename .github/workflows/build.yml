@@ -1,35 +1,63 @@
-name: 'Build'
+name: Build Solar Tweaks for macOS
+
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-11, windows-latest, ubuntu-latest]
+  build-macos:
+    name: Build macOS DMG
+    runs-on: macos-15-intel
+
     steps:
-      - uses: actions/checkout@master
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-      - uses: actions/setup-node@master
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 16
-      - name: Cache node modules
-        id: cache-npm
-        uses: actions/cache@v3
+          cache: npm
+
+      - name: Show environment
+        run: |
+          sw_vers
+          uname -m
+          node --version
+          npm --version
+
+      - name: Install dependencies
         env:
-          cache-name: cache-node-modules
+          NODE_OPTIONS: --openssl-legacy-provider
+        run: |
+          npm ci
+
+      - name: Build Solar Tweaks
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+        run: |
+          npm run build -- --mac
+
+      - name: List build output
+        run: |
+          echo "Build output:"
+          find dist_electron -maxdepth 2 -type f -print 2>/dev/null || true
+          find dist -maxdepth 2 -type f -print 2>/dev/null || true
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
         with:
-          path: node_modules
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
-      - run: npm install
-      - run: npm run build
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          name: Solar-Tweaks-macOS
+          path: |
+            dist_electron/*.dmg
+            dist_electron/*.zip
+            dist_electron/*.blockmap
+          if-no-files-found: warn
