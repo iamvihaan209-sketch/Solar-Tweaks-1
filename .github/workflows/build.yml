@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-macos:
-    name: Build macOS DMG
+    name: Build Solar Tweaks for macOS
     runs-on: macos-15-intel
 
     steps:
@@ -24,15 +24,18 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 18
           cache: npm
 
-      - name: Check Node
+      - name: Check environment
         run: |
-          which node
+          echo "Node:"
           node --version
+          echo "npm:"
           npm --version
+          echo "Architecture:"
           uname -m
+          echo "macOS:"
           sw_vers
 
       - name: Install dependencies
@@ -40,8 +43,10 @@ jobs:
           npm ci
 
       - name: Build Solar Tweaks
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
         run: |
-          NODE_OPTIONS=--openssl-legacy-provider npm run build -- --mac
+          npm run build -- --mac
 
       - name: List build output
         run: |
