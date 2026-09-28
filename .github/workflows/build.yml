@@ -29,37 +29,110 @@ jobs:
 
       - name: Check environment
         run: |
+          echo "===== Environment ====="
           echo "Node:"
           node --version
+          echo
           echo "npm:"
           npm --version
+          echo
           echo "Architecture:"
           uname -m
+          echo
           echo "macOS:"
           sw_vers
+          echo
+          echo "Python:"
+          command -v python3 || true
+          python3 --version || true
+          echo
+          echo "hdiutil:"
+          hdiutil help >/dev/null
+          echo "hdiutil OK"
 
       - name: Install dependencies
         run: |
           npm ci
 
-      - name: Build Solar Tweaks
+      - name: Build Electron app
         env:
           NODE_OPTIONS: --openssl-legacy-provider
         run: |
-          npm run build -- --mac
+          npm run build -- --mac --dir
 
-      - name: List build output
+      - name: Check Electron output
         run: |
-          echo "Build output:"
-          find dist_electron -maxdepth 2 -type f -print 2>/dev/null || true
-          find dist -maxdepth 2 -type f -print 2>/dev/null || true
+          echo "===== dist directory ====="
+          find dist -maxdepth 3 -print 2>/dev/null || true
+
+          echo
+          echo "===== Looking for app bundle ====="
+          find dist -name "*.app" -maxdepth 3 -print
+
+      - name: Create DMG with hdiutil
+        run: |
+          set -e
+
+          APP_PATH="$(find dist -maxdepth 3 -name "*.app" -print -quit)"
+
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: No .app bundle was produced."
+            exit 1
+          fi
+
+          echo "Found app:"
+          echo "$APP_PATH"
+
+          mkdir -p dmg-staging
+
+          cp -R "$APP_PATH" dmg-staging/
+
+          DMG_PATH="dist/Solar-Tweaks-4.3.4.dmg"
+
+          rm -f "$DMG_PATH"
+
+          hdiutil create \
+            -volname "Solar Tweaks" \
+            -srcfolder dmg-staging \
+            -ov \
+            -format UDZO \
+            "$DMG_PATH"
+
+          echo
+          echo "===== DMG created ====="
+          ls -lh "$DMG_PATH"
+
+      - name: Create ZIP of app
+        run: |
+          set -e
+
+          APP_PATH="$(find dist -maxdepth 3 -name "*.app" -print -quit)"
+
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: No .app bundle was produced."
+            exit 1
+          fi
+
+          cd "$(dirname "$APP_PATH")"
+
+          ditto \
+            -c \
+            -k \
+            --sequesterRsrc \
+            --keepParent \
+            "$(basename "$APP_PATH")" \
+            "$GITHUB_WORKSPACE/dist/Solar-Tweaks-4.3.4-macOS.zip"
+
+      - name: List final artifacts
+        run: |
+          echo "===== FINAL ARTIFACTS ====="
+          find dist -maxdepth 1 -type f -print -exec ls -lh {} \;
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Solar-Tweaks-macOS
           path: |
-            dist_electron/*.dmg
-            dist_electron/*.zip
-            dist_electron/*.blockmap
-          if-no-files-found: warn
+            dist/*.dmg
+            dist/*.zip
+          if-no-files-found: error
